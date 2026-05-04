@@ -12,43 +12,67 @@ import {
   FaUserTie,
 } from "react-icons/fa";
 import { serverUrl } from "../App";
+import { useDispatch, useSelector } from "react-redux";
+import { setUserData } from "../redux/userSlice";
 
 function Step1setUp({ onStart }) {
+    const {userData} = useSelector((state)=>state.user)
+    const dispatch = useDispatch()
   const [role, setRole] = useState("");
   const [experience, setExperience] = useState("");
   const [mode, setMode] = useState("Technical");
-  const [resumeFile,setResumeFile] = useState(null)
-  const [loading,setLoading] = useState(false)
-  const [projects , setProjects]= useState([])
-  const [skills , setSkills]= useState([])
-  const [resumeText,SetResumeText] =useState("")
-  const [analysisDone,setAnalysisDone] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
+  const [resumeFile, setResumeFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [resumeText, SetResumeText] = useState("");
+  const [analysisDone, setAnalysisDone] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
-  const handleUploadResume = async ()=>{
-    if(!resumeFile || analyzing)return;
-    setAnalyzing(true)
-    const formdata = new FormData()
-    formdata.append("resume",resumeFile)
+  const handleUploadResume = async () => {
+    if (!resumeFile || analyzing) return;
+    setAnalyzing(true);
+    const formdata = new FormData();
+    formdata.append("resume", resumeFile);
 
     try {
-        const result = await axios.post(serverUrl+"/api/interview/resume",formdata,{withCredentials:true})
+      const result = await axios.post(
+        serverUrl + "/api/interview/resume",
+        formdata,
+        { withCredentials: true },
+      );
+      console.log(result.data);
+
+      setRole(result.data.role || "");
+      setExperience(result.data.experience || "");
+      setProjects(result.data.projects || []);
+      setSkills(result.data.skills || []);
+      SetResumeText(result.data.resumeText || "");
+      setAnalysisDone(true);
+      setAnalyzing(false);
+    } catch (error) {
+      console.log(error);
+      setAnalyzing(false);
+    }
+  };
+
+  const handleStart= async()=>{
+    setLoading(true)
+    try {
+        const result = await axios.post(serverUrl+"/api/interview/generate-questions",{role,experience,mode,resumeText,projects,skills},{withCredentials:true})
         console.log(result.data)
 
-        setRole(result.data.role||"")
-        setExperience(result.data.experience||"")
-        setProjects(result.data.projects||[])
-        setSkills(result.data.skills||[])
-        SetResumeText(result.data.resumeText||"")
-        setAnalysisDone(true);
-        setAnalyzing(false)
- 
+        if(userData){
+            dispatch(setUserData({...userData, credits:result.data.creditsLeft}))
+        }
+        setLoading(false)
+        onStart(result.data)
     } catch (error) {
         console.log(error);
-        setAnalyzing(false)
+        setLoading(false)
+        
     }
   }
-
 
   return (
     <motion.div
@@ -143,71 +167,86 @@ function Step1setUp({ onStart }) {
               <option value="HR">HR Interview</option>
             </select>
 
-            {!analysisDone &&(
-                <motion.div
-                whileHover={{scale:1.02}}
-                onClick={()=>document.getElementById("resumeUpload").click()}
-                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-green-500 transition">
-                    <FaFileUpload className="text-4xl mx-auto text-green-600 mb-3 "/>
-                    <input type="file"
-                    accept="application/pdf"
-                    id="resumeUpload"
-                    className="hidden"
-                    onChange={(e)=>setResumeFile(e.target.files[0])}
-                    />
-                    <p className="text-gray-600 font-medium">
-                        {resumeFile?resumeFile.name:"Click to Upload resume (optional)"}
-                    </p>
-                    {resumeFile && (
-                        <motion.button
-                        whileHover={{scale:1.02}}
-                        onClick={(e)=>{e.stopPropagation();handleUploadResume()} }
-                        className="mt-4 bg-gray-900 text-white px-5 rounded-lg hover:bg-gray-800 transition">
-                            {analyzing?"analyzing...": "Analyze Resume"}
-
-                        </motion.button>
-                    )}
-                </motion.div>
+            {!analysisDone && (
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                onClick={() => document.getElementById("resumeUpload").click()}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-green-500 transition"
+              >
+                <FaFileUpload className="text-4xl mx-auto text-green-600 mb-3 " />
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  id="resumeUpload"
+                  className="hidden"
+                  onChange={(e) => setResumeFile(e.target.files[0])}
+                />
+                <p className="text-gray-600 font-medium">
+                  {resumeFile
+                    ? resumeFile.name
+                    : "Click to Upload resume (optional)"}
+                </p>
+                {resumeFile && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUploadResume();
+                    }}
+                    className="mt-4 bg-gray-900 text-white px-5 rounded-lg hover:bg-gray-800 transition"
+                  >
+                    {analyzing ? "analyzing..." : "Analyze Resume"}
+                  </motion.button>
+                )}
+              </motion.div>
             )}
 
             {analysisDone && (
-                <motion.div
-                initial={{opacity:0,y:20}}
-                animate={{opacity:1, y:0}}
-                className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                        Resume Analysis Result
-                    </h3>
-                    {projects.length>0 && (
-                     <div>
-                        <p className="font-medium text-gray-700 mb-1">Projects:</p>
-                        <ul className="list-disc list-inside text-gray-600 space-y-1">
-                            {projects.map((p,i)=>(
-                                <li key={i}>{p}</li>
-                            ))}
-                        </ul>
-                     </div>
-                    )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4"
+              >
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Resume Analysis Result
+                </h3>
+                {projects.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-700 mb-1">Projects:</p>
+                    <ul className="list-disc list-inside text-gray-600 space-y-1">
+                      {projects.map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                    {skills.length>0 && (
-                     <div>
-                        <p className="font-medium text-gray-700 mb-1">Skills:</p>
-                        <div className="flex flex-wrap gap-2">
-                            {skills.map((s,i)=>(
-                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm" key={i}>{s}</span>
-                            ))}
-                        </div>
-                     </div>
-                    )}
-                </motion.div>
+                {skills.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-700 mb-1">Skills:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((s, i) => (
+                        <span
+                          className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm"
+                          key={i}
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
 
-            <motion.button 
-            disabled={!role||!experience}
-            whileHover={{scale:1.03}}
-            whileTap={{scale:0.95}}
-            className="w-full disabled:bg-gray-600 bg-green-600 hover:bg-green-700 text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md">
-                Start Interview
+            <motion.button
+            onClick={handleStart}
+              disabled={!role || !experience || loading}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full disabled:bg-gray-600 bg-green-600 hover:bg-green-700 text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md"
+            >
+              {loading?"starting...":"Start Interview"}
             </motion.button>
           </div>
         </motion.div>

@@ -17,7 +17,7 @@ function InterviewPage() {
         {step===2&&(
             <Step2interview interviewData={interviewData}
             onFinish={(report)=>{setInterviewData(report)
-                setStep(2)
+                setStep(3)
             }} />
         )}
         {step===3&&(
